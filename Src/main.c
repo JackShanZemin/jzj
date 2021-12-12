@@ -337,7 +337,8 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 0;
+  //htim1.Init.Prescaler = 0;
+	htim1.Init.Prescaler = 63;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim1.Init.Period = 0xFFFF;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -412,6 +413,7 @@ static void MX_TIM1_Init(void)
   * @param  htim : TIM IC handle
   * @retval None
   */
+uint32_t b=0;
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
   if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)
@@ -426,7 +428,8 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 
       /* uwFrequency computation
       TIM1 counter clock = (System Clock) */
-      uwFrequency = ( HAL_RCC_GetSysClockFreq()  ) / uwIC2Value;
+			b = HAL_RCC_GetSysClockFreq();
+      uwFrequency = ( HAL_RCC_GetSysClockFreq()/64  ) / uwIC2Value;
 
     }
     else
