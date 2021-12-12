@@ -413,7 +413,6 @@ static void MX_TIM1_Init(void)
   * @param  htim : TIM IC handle
   * @retval None
   */
-uint32_t b=0;
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
   if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)
@@ -428,7 +427,6 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 
       /* uwFrequency computation
       TIM1 counter clock = (System Clock) */
-			b = HAL_RCC_GetSysClockFreq();
       uwFrequency = ( HAL_RCC_GetSysClockFreq()/64  ) / uwIC2Value;
 
     }
