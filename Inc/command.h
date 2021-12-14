@@ -18,7 +18,8 @@
 #define	 T_2MS								    		 0
 #define  T_LED                         1
 #define  T_HAF                         2
-#define  TIMER_MAX                     3
+#define  T_10MS                        4  
+#define  TIMER_MAX                     5
 
 #define  GUN_ON                        0
 #define  GUN_OFF                       1
@@ -28,6 +29,12 @@
 
 #define  FREQ_5K                       5000
 #define  FREQ_6K                       6000
+
+#define  startfill                     0
+#define  endfill                       1
+#define  breakfill                     2
+#define  cancelfill                    3
+#define  cycledata                     4
 
 /*Structure definition -------------------------------------------------------*/
 typedef struct	_SW_TIMER_STRUCT

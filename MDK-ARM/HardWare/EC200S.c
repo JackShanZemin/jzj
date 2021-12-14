@@ -153,22 +153,33 @@ void EC200S_CreateTCPSokcet(void)//创建sokcet
 
 void  MQTT_Init(void)
 {
-    printf("AT+QMTCFG=\"aliauth\",0,\"%s\",\"%s\",\"%s\"\r\n",ProductKey,DeviceName,DeviceSecret);  //ProductKey== jzj DeviceName==id  DeviceSecret可去掉
+    //printf("AT+QMTCFG=\"aliauth\",0,\"%s\",\"%s\",\"%s\"\r\n",ProductKey,DeviceName,DeviceSecret);  //ProductKey== jzj DeviceName==id  DeviceSecret可去掉
+	  printf("AT+QMTCFG=\"SSL\",0,1,2\r\n");
     HAL_Delay(300);
-    printf("AT+QMTOPEN=0,\"139.196.135.135\",1883\r\n");//通过TCP方式去连接MQTT阿里云服务器 
+    printf("AT+QMTOPEN=0,\"mqtt.anlan.tech\",8883\r\n");//通过TCP方式去连接MQTT阿里云服务器 
     HAL_Delay(300);
     strx=strstr((const char*)RxBuffer,(const char*)"+QMTOPEN: 0,0");//看下返回状态
   while(strx==NULL)
     {
         strx=strstr((const char*)RxBuffer,(const char*)"+QMTOPEN: 0,0");//确认返回值正确
     }
-    Clear_Buffer(); 
-    printf("AT+QMTCONN=0,\"clientexmaple\"\r\n");//去登录MQTT服务器，设备ID，产品ID,鉴权信息。用户根据实际需要进行更改
+    Clear_Buffer();
+    HAL_Delay(1000);		
+    printf("AT+QMTCONN=0,\"tsttest004\"\r\n");//去登录MQTT服务器，设备ID，产品ID,鉴权信息。用户根据实际需要进行更改
     HAL_Delay(300);
     strx=strstr((const char*)RxBuffer,(const char*)"+QMTCONN: 0,0,0");//看下返回状态
   while(strx==NULL)
     {
         strx=strstr((const char*)RxBuffer,(const char*)"+QMTCONN: 0,0,0");//看下返回状态
+    }
+    Clear_Buffer(); 
+    HAL_Delay(1000);		
+    printf("AT+QMTSUB=0,1,\"hello\",0\r\n");//去登录MQTT服务器，设备ID，产品ID,鉴权信息。用户根据实际需要进行更改
+    HAL_Delay(300);
+    strx=strstr((const char*)RxBuffer,(const char*)"+QMTSUB: 0,1,0,0");//看下返回状态
+  while(strx==NULL)
+    {
+        strx=strstr((const char*)RxBuffer,(const char*)"+QMTSUB: 0,1,0,0");//看下返回状态
     }
     Clear_Buffer(); 
 

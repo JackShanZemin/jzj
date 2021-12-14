@@ -27,7 +27,7 @@ void Getdata_Change(void);
 #define ProductKey     "a1ZMkwhevG9"             //²úÆ·KEY
 #define DeviceName          "mzh001"      //
 #define DeviceSecret    "cc96840980ac49570acc47e2c0195b5c"  //
-#define PubTopic         "/sys/a1ZMkwhevG9/mzh001/thing/event/property/post"
+#define PubTopic         "hello"//"/sys/a1ZMkwhevG9/mzh001/thing/event/property/post"
 #define SubTopic        "/sys/a1SZ2mtWIur/m001/thing/service/property/set"
 
 #endif

@@ -10,6 +10,7 @@ void UART1_send_byte(char data);
 void Uart2_SendDATA(char *data,unsigned char len);
 void Uart1_SendDATA(char *data,unsigned char len);
 extern uint8_t RxBuffer[400];
+extern uint8_t TxBuffer[300];
 extern int Rxcouter;
 extern uint8_t Uart1_RxBuff[100];		//数据数据
 extern uint8_t Uart1_Rx_Cnt ;		//长

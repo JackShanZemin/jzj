@@ -7,6 +7,7 @@ uint8_t aRxBuffer1,aRxBuffer2;			//接收数据存储变量
 uint8_t Uart1_RxBuff[100];		//数据数据
 uint8_t Uart1_Rx_Cnt = 0;		//长度
 uint8_t RxBuffer[400];
+uint8_t TxBuffer[300];
 int Rxcouter;
 
 #ifdef __GNUC__
