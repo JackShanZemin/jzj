@@ -18,7 +18,7 @@
 #define	 T_2MS								    		 0
 #define  T_LED                         1
 #define  T_HAF                         2
-#define  T_10MS                        4  
+#define  T_HBT                         4  
 #define  TIMER_MAX                     5
 
 #define  GUN_ON                        0
@@ -30,20 +30,27 @@
 #define  FREQ_5K                       5000
 #define  FREQ_6K                       6000
 
-#define  startfill                     0
-#define  endfill                       1
-#define  breakfill                     2
-#define  cancelfill                    3
-#define  cycledata                     4
+#define  id                            0
+
+#define  READY_FILL                    0 //"123"//#READY_(id)    //#(READY__(READY_(id)))       
+#define  startfill                     1
+#define  endfill                       2
+#define  breakfill                     3
+#define  cancelfill                    4
+#define  cycledata                     5
+
+#define  SEND_EN                       1
+#define  SEND_OVER                     0
+ 
 
 /*Structure definition -------------------------------------------------------*/
 typedef struct	_SW_TIMER_STRUCT
 {
-	int	old_ms;
-	int	timeout_ms;
-	int	timeout_over;
+	u32	old_ms;
+	u32	timeout_ms;
+	u32	timeout_over;
 	int	count_en;
-	int over_ms;
+	u32 over_ms;
 	
 } SW_TIMER_STRUCT;
 

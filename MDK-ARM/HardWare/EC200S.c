@@ -174,7 +174,8 @@ void  MQTT_Init(void)
     }
     Clear_Buffer(); 
     HAL_Delay(1000);		
-    printf("AT+QMTSUB=0,1,\"hello\",0\r\n");//去登录MQTT服务器，设备ID，产品ID,鉴权信息。用户根据实际需要进行更改
+    //printf("AT+QMTSUB=0,1,\"hello\",0\r\n");//去登录MQTT服务器，设备ID，产品ID,鉴权信息。用户根据实际需要进行更改
+		printf("AT+QMTSUB=0,1,\"hello\",0\r\n");
     HAL_Delay(300);
     strx=strstr((const char*)RxBuffer,(const char*)"+QMTSUB: 0,1,0,0");//看下返回状态
   while(strx==NULL)

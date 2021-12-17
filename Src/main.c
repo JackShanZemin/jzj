@@ -71,9 +71,9 @@ static void SWTimer_Start( SW_TIMER_STRUCT * stimer );
 static void Timer_Init(SW_TIMER_STRUCT timer[TIMER_MAX]);
 static void Led_Blink(SW_TIMER_STRUCT * stimer);
 static u32  Gun_Check(SW_TIMER_STRUCT * stimer, SCAN_DATA_STRUCT * Data_Scan);
-static void State_Machine(u32 cur_state, u32 * next_state_ptr, SCAN_DATA_STRUCT * Data_Scan, SW_TIMER_STRUCT timer[TIMER_MAX], u32 inject_value, u32 * cur_value);
+static void State_Machine(u32 cur_state, u32 * next_state_ptr, SCAN_DATA_STRUCT * Data_Scan, SW_TIMER_STRUCT timer[TIMER_MAX], u32 inject_value, u32 * cur_value, u8 * flag);
 //void Pub_Msgdata(void);
-static void Pub_MsgData(char *buf, u32 *length ,u8 step);
+static void Pub_MsgData(u8 topic);
 static void Heart_Beat( SW_TIMER_STRUCT * stimer );
 //void OLED_SHOWAPP(void);
 	int  temp,humi;
@@ -137,7 +137,8 @@ int main(void)
 	u32 CT_data[2];
 	u32 len;
 	u32 static	cur_state = READY;																																									
-	u32 static	next_state = READY;	
+	u32 static	next_state = READY;
+  u8  static  send_flag = 0;	
 	SCAN_DATA_STRUCT	static		Gun_Scan;
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
@@ -162,22 +163,22 @@ int main(void)
 	MQTT_Init();                        //加注机开机注册
 	                                    //更新加注机会话状态
 	                                    //注册成功
-	//Uart1_SendStr("Ready \r\n");        //在线灯亮
 	
 	Timer_Init(timer);
 	
+	send_flag = SEND_EN;
+	Uart1_SendStr("Welcome! \r\n");	
   while (1)
   {
 		
 		Led_Blink(&timer[T_LED]);         //LED闪烁
-		Heart_Beat(&timer[T_10MS]);
+		//Heart_Beat(&timer[T_HBT]);
 		Gun_Check(&timer[T_2MS], &Gun_Scan);  //读取加注枪状态
 		
 		cur_state = next_state;
-		State_Machine(cur_state, &next_state, &Gun_Scan, timer, inject_val, &cur_val);
-		
-		
-	 
+		State_Machine(cur_state, &next_state, &Gun_Scan, timer, inject_val, &cur_val, &send_flag);
+
+		//if(strcmp(READY_FILL,"jzj/0/readyfill"));
 //				Pub_Msgdata();//数据发送
 //				HAL_Delay(300);
 //				EC200S_RECData();//收阿里云平台下发数据
@@ -189,7 +190,7 @@ int main(void)
 
 static void Heart_Beat( SW_TIMER_STRUCT * stimer)
 {
-	if(Check_Timeout(&stimer[T_10MS]))
+	if(Check_Timeout(&stimer[T_HBT]))
 	{
 		char *strx;
 		uint8_t send_jason[300];
@@ -197,68 +198,43 @@ static void Heart_Beat( SW_TIMER_STRUCT * stimer)
 		EC200U_GETGNSSdata();//获取GPS数据
 		data_len=Mqttaliyun_Savedata(send_jason,temp/10,humi/10);
 		printf("AT+QMTPUBEX=0,0,0,0,\"%s\",%d\r\n","jzj/0/cycledata",data_len);
-		printf("%s",send_jason);
-		//printf("AT+QMTPUBEX=0,0,0,0,\"%s\",%d\r\n",PubTopic,data_len);//
-		HAL_Delay(3000);
+		HAL_Delay(100);
+	  printf("%s",send_jason);
+		HAL_Delay(300);
 		strx=strstr((const char*)RxBuffer,(const char*)"+QMTPUBEX: 0,0,0");//  +QMTPUBEX: 0,0,0
 		while(strx==NULL)
 		{
 			strx=strstr((const char*)RxBuffer,(const char*)"+QMTPUBEX: 0,0,0");//  +QMTPUBEX: 0,0,0
 		}
-			EC200S_RECData();//收阿里云平台下发数据
-			HAL_Delay(500);	HAL_Delay(500);
-		SWTimer_Start(&stimer[T_10MS]);
+		EC200S_RECData();//收阿里云平台下发数据
+		HAL_Delay(500);	HAL_Delay(500);
+		SWTimer_Start(&stimer[T_HBT]);
 	}
 }
 
-static void Pub_MsgData(char *buf, u32 *length ,u8 step)
+u8 json[100];
+u8 top[30];
+
+static void Pub_MsgData(u8 topic)
 {
 	char *strx;
-	uint8_t send_jason[300];
-	switch(step)
+
+	if(READY_FILL == topic)
 	{
-		case startfill:
-		{
-			printf("AT+QMTPUBEX=0,0,0,0,\"%s\",%d,\"%s\"\r\n","jzj/0/startfill",*length,buf);
-			break;
-		}
-		case endfill:
-		{
-			printf("AT+QMTPUBEX=0,0,0,0,\"%s\",%d,\"%s\"\r\n","jzj/0/endfill",*length,buf);
-			break;
-		}
-		case breakfill:
-		{
-			printf("AT+QMTPUBEX=0,0,0,0,\"%s\",%d,\"%s\"\r\n","jzj/0/breakfill",*length,buf);
-			break;
-		}
-		case cancelfill:
-		{
-			printf("AT+QMTPUBEX=0,0,0,0,\"%s\",%d,\"%s\"\r\n","jzj/0/cancelfill",*length,buf);
-			break;
-		}
-		case cycledata:
-		{
-			
-			EC200U_GETGNSSdata();//获取GPS数据
-			*length = Mqttaliyun_Savedata((u8 *)buf,temp/10,humi/10);
-			printf("AT+QMTPUBEX=0,0,0,0,\"%s\",%d\r\n","jzj/0/cycledata",*length);
-			printf("%s",send_jason);
-			break;
-		}
-		default:
-			break;
+		sprintf((char *)json,"{\"message_id\":\"fehjijiadaiefn\",\"timestamp\":\"12345678\"}");
+		sprintf((char *)top,"jzj/%d/readyfill",id);
 	}
 	
+	printf("AT+QMTPUBEX=0,0,0,0,\"%s\",%d\r\n",top,strlen((char *)json));
+	HAL_Delay(100);
+	printf("%s",json);
 	HAL_Delay(300);
-  strx=strstr((const char*)RxBuffer,(const char*)"+QMTPUBEX: 0,0,0");//  +QMTPUBEX: 0,0,0
 	while(strx==NULL)
 	{
 		strx=strstr((const char*)RxBuffer,(const char*)"+QMTPUBEX: 0,0,0");//  +QMTPUBEX: 0,0,0
-	}
-  EC200S_RECData();//收阿里云平台下发数据
-	HAL_Delay(1000);	
-	
+	}	
+	HAL_Delay(100);
+
 }
 
 //void Pub_Msgdata(void)//发布数据到ONENET显示
@@ -525,8 +501,8 @@ static void Timer_Init(SW_TIMER_STRUCT			timer[TIMER_MAX])
 	timer[T_LED].timeout_ms = 1000;
 	timer[T_HAF].count_en = DISABLE;
 	timer[T_HAF].timeout_ms = 2000;
-  timer[T_10MS].count_en = ENABLE;
-	timer[T_10MS].timeout_ms = 10000;
+  timer[T_HBT].count_en = ENABLE;
+	timer[T_HBT].timeout_ms = 10000;
 }
 
 static int Check_Timeout( SW_TIMER_STRUCT * stimer )
@@ -597,20 +573,27 @@ static u32 Gun_Check(SW_TIMER_STRUCT * stimer, SCAN_DATA_STRUCT * Data_Scan)
 	}
 }
 
-static void State_Machine(u32 cur_state, u32 * next_state_ptr, SCAN_DATA_STRUCT * Data_Scan, SW_TIMER_STRUCT timer[TIMER_MAX], u32 inject_value, u32 * cur_value)
+static void State_Machine(u32 cur_state, u32 * next_state_ptr, SCAN_DATA_STRUCT * Data_Scan, SW_TIMER_STRUCT timer[TIMER_MAX], u32 inject_value, u32 * cur_value, u8 * flag)
 {
 	switch(cur_state)
 	{
 		case READY:
     {a=1;
-			//Uart1_SendStr("Ready \r\n");  //显示就绪界面
 			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14, GPIO_PIN_RESET); //关泵(PB12)，关主阀(PB13)，关副阀(PB14)
+			
+			if(SEND_EN == *flag)
+			{
+				Uart1_SendStr("Ready \r\n");        //显示就绪界面
+				Pub_MsgData(READY_FILL);
+				*flag = SEND_OVER;
+			}
 			
 			if(Data_Scan->data == GUN_ON)  //加注枪悬挂时有效  
 			{
 				if(rec_value == 1)
 				{
 					*next_state_ptr = STAY_INJECT;
+					*flag = SEND_EN;
 				}
 			}
 			break;
