@@ -72,13 +72,18 @@ static void Timer_Init(SW_TIMER_STRUCT timer[TIMER_MAX]);
 static void Led_Blink(SW_TIMER_STRUCT * stimer);
 static u32  Gun_Check(SW_TIMER_STRUCT * stimer, SCAN_DATA_STRUCT * Data_Scan);
 static void State_Machine(u32 cur_state, u32 * next_state_ptr, SCAN_DATA_STRUCT * Data_Scan, SW_TIMER_STRUCT timer[TIMER_MAX], u32 inject_value, u32 * cur_value, u8 * flag);
-//void Pub_Msgdata(void);
 static void Pub_MsgData(u8 topic);
 static void Heart_Beat( SW_TIMER_STRUCT * stimer );
+static u8   Login_Decode(void);
+static void Task_Decode(u8 * step);
 //void OLED_SHOWAPP(void);
-	int  temp,humi;
+int  temp,humi;
+u8                       d_step;
+
 /* USER CODE BEGIN PFP */
-SW_TIMER_STRUCT		static    timer[TIMER_MAX];
+SW_TIMER_STRUCT  static  timer[TIMER_MAX];
+UREA_PARA_STRUCT         urea_para;
+TASK_PARA_STRUCT         task_para;
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -112,7 +117,7 @@ void OPEN_CAT1(void)
 		{
 				Clear_Buffer();	
 				printf("AT\r\n"); 
-				HAL_Delay(300);
+				HAL_Delay(100);
 			  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_12);
 				strx=strstr((const char*)RxBuffer,(const char*)"OK");//返回OK
 		}
@@ -136,8 +141,8 @@ int main(void)
   u32 cur_val = 0;
 	u32 CT_data[2];
 	u32 len;
-	u32 static	cur_state = READY;																																									
-	u32 static	next_state = READY;
+	u32 static	cur_state = LOGIN;																																									
+	u32 static	next_state = LOGIN;
   u8  static  send_flag = 0;	
 	SCAN_DATA_STRUCT	static		Gun_Scan;
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
@@ -163,10 +168,10 @@ int main(void)
 	MQTT_Init();                        //加注机开机注册
 	                                    //更新加注机会话状态
 	                                    //注册成功
-	
 	Timer_Init(timer);
 	
-	send_flag = SEND_EN;
+	send_flag =  SEND_EN;
+	d_step    =  TASK_ID;
 	Uart1_SendStr("Welcome! \r\n");	
   while (1)
   {
@@ -187,11 +192,12 @@ int main(void)
   }
   
 }
-
+int m=0;
 static void Heart_Beat( SW_TIMER_STRUCT * stimer)
 {
-	if(Check_Timeout(&stimer[T_HBT]))
-	{
+	//if(Check_Timeout(&stimer[T_HBT]))
+	if(Check_Timeout(stimer))
+	{m++;
 		char *strx;
 		uint8_t send_jason[300];
 		uint16_t data_len;
@@ -208,7 +214,7 @@ static void Heart_Beat( SW_TIMER_STRUCT * stimer)
 		}
 		EC200S_RECData();//收阿里云平台下发数据
 		HAL_Delay(500);	HAL_Delay(500);
-		SWTimer_Start(&stimer[T_HBT]);
+		SWTimer_Start(stimer);
 	}
 }
 
@@ -229,35 +235,15 @@ static void Pub_MsgData(u8 topic)
 	HAL_Delay(100);
 	printf("%s",json);
 	HAL_Delay(300);
+	
 	while(strx==NULL)
 	{
 		strx=strstr((const char*)RxBuffer,(const char*)"+QMTPUBEX: 0,0,0");//  +QMTPUBEX: 0,0,0
 	}	
 	HAL_Delay(100);
-
+	Clear_Buffer();
 }
 
-//void Pub_Msgdata(void)//发布数据到ONENET显示
-//{
-//	  char *strx;
-//	  uint8_t send_jason[300];
-//	  uint16_t data_len;
-//		EC200U_GETGNSSdata();//获取GPS数据
-//		data_len=Mqttaliyun_Savedata(send_jason,temp/10,humi/10);
-//		//printf("AT+QMTPUBEX=0,0,0,0,\"%s\",%d\r\n",PubTopic,data_len);//
-//	  printf("AT+QMTPUBEX=0,0,0,0,\"%s\",%d,\"%s\"\r\n","hello",9,"123456789");//
-//		HAL_Delay(1000);
-//		//printf("%s",send_jason);
-//		HAL_Delay(3000);
-//		strx=strstr((const char*)RxBuffer,(const char*)"+QMTPUBEX: 0,0,0");//  +QMTPUBEX: 0,0,0
-//		while(strx==NULL)
-//		{
-//			strx=strstr((const char*)RxBuffer,(const char*)"+QMTPUBEX: 0,0,0");//  +QMTPUBEX: 0,0,0
-//		}
-//		  EC200S_RECData();//收阿里云平台下发数据
-//			HAL_Delay(500);	HAL_Delay(500);
-//		
-//}
 /**
   * @brief System Clock Configuration
   * @retval None
@@ -502,7 +488,9 @@ static void Timer_Init(SW_TIMER_STRUCT			timer[TIMER_MAX])
 	timer[T_HAF].count_en = DISABLE;
 	timer[T_HAF].timeout_ms = 2000;
   timer[T_HBT].count_en = ENABLE;
-	timer[T_HBT].timeout_ms = 10000;
+	timer[T_HBT].timeout_ms = 60000;
+	timer[T_3].count_en = ENABLE;
+	timer[T_3].timeout_ms = 2000;
 }
 
 static int Check_Timeout( SW_TIMER_STRUCT * stimer )
@@ -573,10 +561,19 @@ static u32 Gun_Check(SW_TIMER_STRUCT * stimer, SCAN_DATA_STRUCT * Data_Scan)
 	}
 }
 
+int ddd = 0;
 static void State_Machine(u32 cur_state, u32 * next_state_ptr, SCAN_DATA_STRUCT * Data_Scan, SW_TIMER_STRUCT timer[TIMER_MAX], u32 inject_value, u32 * cur_value, u8 * flag)
 {
 	switch(cur_state)
 	{
+		case LOGIN:
+		{
+			if(Login_Decode())
+			{
+				*next_state_ptr = READY;
+			}
+		  break;
+		}
 		case READY:
     {a=1;
 			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14, GPIO_PIN_RESET); //关泵(PB12)，关主阀(PB13)，关副阀(PB14)
@@ -588,7 +585,9 @@ static void State_Machine(u32 cur_state, u32 * next_state_ptr, SCAN_DATA_STRUCT 
 				*flag = SEND_OVER;
 			}
 			
-			if(Data_Scan->data == GUN_ON)  //加注枪悬挂时有效  
+			Task_Decode(&d_step);
+			
+			if(Data_Scan->data == GUN_ON)         //加注枪悬挂时有效  
 			{
 				if(rec_value == 1)
 				{
@@ -677,6 +676,504 @@ static void State_Machine(u32 cur_state, u32 * next_state_ptr, SCAN_DATA_STRUCT 
 	}
 }
 
+static u8 Login_Decode(void)
+{
+	char  *str1;
+	char  *str2;
+	char  *str3;
+	char  buf[30];
+	char  buf1[30];
+	char  price[10];
+	int i =0;
+	int j =0;
+	char sss = ',';
+	char dot = '.';
+	u8 dot_flag = 0;
+	u8 flag = 1;
+	
+  while(flag)
+  { 
+	  str1=strstr((const char*)RxBuffer,(const char*)"message_id");      //解析id
+	  str2=strchr((const char*)str1,':');
+	  str3=strchr((const char*)str1,',');
+	  memcpy(buf,str2+3,30);
+
+	  for(i=0;i<30;i++)
+   {
+		 if(buf[i]==sss)
+		 {
+			 j=i;
+			 memcpy(buf1,buf,j);
+			 memcpy(&urea_para.message_id,buf1,i-1);
+		 }
+	 }
+
+	 str1=strstr((const char*)RxBuffer,(const char*)"timestamp");      //解析 pulse_equ
+	 str2=strchr((const char*)str1,':');
+	 str3=strchr((const char*)str1,',');
+	 memcpy(buf,str2+2,30);
+
+	 for(i=0;i<30;i++)
+	 {
+		 if(buf[i]==sss)
+		 {
+			 int sum = 0;
+			 for(j=0;j<i;j++)
+			 {
+				 sum = sum*10;
+				 sum = sum + (buf[j]-0x30);
+			 }
+			 urea_para.timestamp = sum;
+			 break;
+		 }
+	 }
+	 
+//	 str1=strstr((const char*)RxBuffer,(const char*)"timestamp");      //解析 timestamp
+//	 str2=strchr((const char*)str1,':');
+//	 str3=strchr((const char*)str1,',');
+//	 memcpy(buf,str2+3,30);
+
+//	 for(i=0;i<30;i++)
+//	 {
+//		 if(buf[i]==sss)
+//		 {
+//			 j=i;
+//			 memcpy(buf1,buf,i);
+//			 memcpy(&urea_para.timestamp,buf1,i-1);
+//		 }
+//	 }
+
+//	 str1=strstr((const char*)RxBuffer,(const char*)"pulse_equ");      //解析 pulse_equ
+//	 str2=strchr((const char*)str1,':');
+//	 str3=strchr((const char*)str1,',');
+//	 memcpy(buf,str2+1,30);
+
+	 for(i=0;i<20;i++)
+	 {
+		 if(buf[i]==sss)
+		 {
+			 int sum = 0;
+			 for(j=0;j<i;j++)
+			 {
+				 sum = sum*10;
+				 sum = sum + (buf[j]-0x30);
+			 }
+			 urea_para.pulse_equ = sum;
+		 }
+	 }
+	 
+	 str1=strstr((const char*)RxBuffer,(const char*)"open_price");      //解析 open_price
+	 str2=strchr((const char*)str1,':');
+	 str3=strchr((const char*)str1,',');
+	 memcpy(buf,str2+1,30);
+
+	 for(i=0;i<20;i++)
+	 {
+		 if(buf[i]==sss)
+		 {
+			 memcpy(price,buf,i);
+			 dot_flag = 0;
+			 float sum=0;
+			 float div=0;
+			 int dot_sum = 0;
+			 for(j=0;j<i;j++)
+			 {
+				 if(price[j]==dot)
+				 {
+					 dot_flag = 1;
+				 }
+ 
+				 if(dot_flag == 0)
+				 {
+					 sum = sum*10;
+					 sum = sum + (price[j] - 0x30);
+				 }
+				 else if(dot_flag == 1)
+				 {
+					 if(dot_sum == 0)
+					 {
+						 dot_sum=1;
+					 }
+					 else
+					 {
+						 dot_sum = dot_sum*10;
+						 div = (float)(price[j]-0x30)/(float)dot_sum;
+					 }
+					 sum = sum + div;
+				 }
+				 urea_para.open_price = sum;
+			 }
+		 }
+	 }
+
+	 str1=strstr((const char*)RxBuffer,(const char*)"QR_Code");      //解析 QR_Code
+	 str2=strchr((const char*)str1,':');
+	 str3=strchr((const char*)str1,',');
+	 memcpy(buf,str2+3,30);
+
+	 for(i=0;i<30;i++)
+	 {
+		 if(buf[i]==sss)
+		 {
+			 j=i;
+			 memcpy(buf1,buf,i);
+			 memcpy(&urea_para.QR_Code,buf1,i-1);
+		 }
+	 }
+	 
+	 str1=strstr((const char*)RxBuffer,(const char*)"conctr");      //解析 conctr
+	 str2=strchr((const char*)str1,':');
+	 str3=strchr((const char*)str1,',');
+	 memcpy(buf,str2+1,30);
+
+	 for(i=0;i<20;i++)
+	 {
+		 if(buf[i]==0x0A)
+		 {
+			 memcpy(price,buf,i);
+			 dot_flag = 0;
+			 float sum=0;
+			 float div=0;
+			 int dot_sum = 0;
+			 for(j=0;j<i;j++)
+			 { 
+
+				 if(price[j]==dot)
+				 {
+					 dot_flag = 1;
+				 }
+				 
+				 if(dot_flag == 0)
+				 {
+					 sum = sum*10;
+					 sum = sum + (price[j] - 0x30);
+				 }
+				 else if(dot_flag == 1)
+				 {
+					 if(dot_sum == 0)
+					 {
+						 dot_sum=1;
+					 }
+					 else
+					 {
+						 dot_sum = dot_sum*10;
+						 div = (float)(price[j]-0x30)/(float)dot_sum;
+					 }
+					 sum = sum + div;
+				 }
+				 urea_para.conctr = sum;
+			 }
+		 }
+	 }			 
+
+	 str1=strstr((const char*)RxBuffer,(const char*)"status");      //解析 pulse_equ
+	 str2=strchr((const char*)str1,':');
+	 str3=strchr((const char*)str1,',');
+	 memcpy(buf,str2+1,30);
+
+	 for(i=0;i<5;i++)
+	 {
+		 if(buf[i]==sss)
+		 {
+			 int sum = 0;
+			 for(j=0;j<i;j++)
+			 {
+				 sum = sum*10;
+				 sum = sum + (buf[j]-0x30);
+			 }
+			 urea_para.status = sum;
+		 }
+	 }
+	 
+	 if((urea_para.status==1)&&(*urea_para.message_id!=0)&&(urea_para.open_price!=0)&& \
+			 (urea_para.timestamp!=0)&&(urea_para.conctr!=0)&&(*urea_para.QR_Code!=0)&&(urea_para.pulse_equ!=0))
+	 {
+			 flag = 0;
+	 }				 
+	 ddd=1;
+ }
+	
+  Clear_Buffer(); 
+	return 1;
+}
+
+static void Task_Decode(u8 * step)
+{
+	char  *str1;
+	char  *str2;
+	char  *str3;
+	char  buf[30];
+	char  buf1[30];
+	char  price[10];
+	int i =0;
+	int j =0;
+	char sss = ',';
+	char dot = '.';
+	u8 dot_flag = 0;
+	u8 flag = 1;
+
+  if(*step == TASK_ID)
+	{
+		str1=strstr((const char*)RxBuffer,(const char*)"message_id");      //解析id
+	  str2=strchr((const char*)str1,':');
+	  str3=strchr((const char*)str1,',');
+	  memcpy(buf,str2+3,30);
+		
+		for(i=0;i<30;i++)
+    {
+		  if(buf[i]==sss)
+		  {
+			  //j=i;
+			  memcpy(buf1,buf,i);
+			  memcpy(&task_para.message_id,buf1,i-1);
+				break;
+		  }
+	  }
+	 
+	  if(*task_para.message_id != 0)
+		{
+			*step = TASK_TIME;
+		}
+	}
+	else if(*step == TASK_TIME)
+	{
+		 str1=strstr((const char*)RxBuffer,(const char*)"timestamp");      //解析 pulse_equ
+		 str2=strchr((const char*)str1,':');
+		 str3=strchr((const char*)str1,',');
+		 memcpy(buf,str2+2,30);
+
+		 for(i=0;i<30;i++)
+		 {
+			 if(buf[i]==sss)
+			 {
+				 int sum = 0;
+				 for(j=0;j<i;j++)
+				 {
+					 sum = sum*10;
+					 sum = sum + (buf[j]-0x30);
+				 }
+				 task_para.timestamp = sum;
+				 break;
+			 }
+		 }
+
+    if(task_para.timestamp != 0)
+		{
+			*step = TASK_VLM;
+		}
+	}
+	else if(*step == TASK_VLM)
+	{
+		 str1=strstr((const char*)RxBuffer,(const char*)"task_vlm");      //解析 pulse_equ
+		 str2=strchr((const char*)str1,':');
+		 str3=strchr((const char*)str1,',');
+		 memcpy(buf,str2+1,30);
+
+		 for(i=0;i<30;i++)
+		 {
+			 if(buf[i]==sss)
+			 {
+				 int sum = 0;
+				 for(j=0;j<i;j++)
+				 {
+					 sum = sum*10;
+					 sum = sum + (buf[j]-0x30);
+				 }
+				 task_para.task_vlm = sum;
+				 break;
+			 }
+		 }
+     
+		 if(task_para.task_vlm != 0)
+		{
+			*step = TASK_TYPE;
+		}
+	}
+	else if(*step == TASK_TYPE)
+	{
+		 str1=strstr((const char*)RxBuffer,(const char*)"task_type");      //解析 pulse_equ
+		 str2=strchr((const char*)str1,':');
+		 str3=strchr((const char*)str1,',');
+		 memcpy(buf,str2+1,30);
+
+		 for(i=0;i<6;i++)
+		 {
+			 if(buf[i]==sss)
+			 {
+				 int sum = 0;
+				 for(j=0;j<i;j++)
+				 {
+					 sum = sum*10;
+					 sum = sum + (buf[j]-0x30);
+				 }
+				 task_para.task_type = sum;
+				 break;
+			 }
+		 }
+     
+		 if(task_para.task_type != 0)
+		{
+			*step = TASK_NO;
+		}		
+	}
+	else if(*step == TASK_NO)
+	{
+		str1=strstr((const char*)RxBuffer,(const char*)"task_no");       //解析 task_no
+	  str2=strchr((const char*)str1,':');
+	  str3=strchr((const char*)str1,',');
+	  memcpy(buf,str2+3,30);
+		
+		for(i=0;i<20;i++)
+    {
+		  if(buf[i]==sss)
+		  {
+			  memcpy(buf1,buf,i);
+			  memcpy(&task_para.task_no,buf1,i-1);
+				break;
+		  }
+	  }
+	 
+	  if(*task_para.task_no != 0)
+		{
+			*step = TASK_BUSI_TAIL;
+		}
+	}
+	else if(*step == TASK_BUSI_TAIL)
+	{
+		 str1=strstr((const char*)RxBuffer,(const char*)"busi_tail");      //解析 TASK_BUSI_TAIL
+		 str2=strchr((const char*)str1,':');
+		 str3=strchr((const char*)str1,',');
+		 memcpy(buf,str2+1,30);
+
+		 for(i=0;i<30;i++)
+		 {
+			 if(buf[i]==sss)
+			 {
+				 int sum = 0;
+				 for(j=0;j<i;j++)
+				 {
+					 sum = sum*10;
+					 sum = sum + (buf[j]-0x30);
+				 }
+				 task_para.busi_tail = sum;
+				 break;
+			 }
+		 }
+     
+		 if(task_para.busi_tail != 0)
+		{
+			*step = TASK_PRICE;
+		}
+	}
+	else if(*step == TASK_PRICE)
+	{
+		 str1=strstr((const char*)RxBuffer,(const char*)"price");      //解析 price
+		 str2=strchr((const char*)str1,':');
+		 str3=strchr((const char*)str1,',');
+		 memcpy(buf,str2+1,30);
+
+		 for(i=0;i<10;i++)
+		 {
+			 if(buf[i]==sss)
+			 {
+				 memcpy(price,buf,i);
+				 dot_flag = 0;
+				 float sum=0;
+				 float div=0;
+				 int dot_sum = 0;
+				 for(j=0;j<i;j++)
+				 {
+					 if(price[j]==dot)
+					 {
+						 dot_flag = 1;
+					 }
+	 
+					 if(dot_flag == 0)
+					 {
+						 sum = sum*10;
+						 sum = sum + (price[j] - 0x30);
+					 }
+					 else if(dot_flag == 1)
+					 {
+						 if(dot_sum == 0)
+						 {
+							 dot_sum=1;
+						 }
+						 else
+						 {
+							 dot_sum = dot_sum*10;
+							 div = (float)(price[j]-0x30)/(float)dot_sum;
+						 }
+						 sum = sum + div;
+					 }
+				 }
+				 task_para.price = sum;
+				 break;
+			 }
+		 }
+
+		 if(task_para.price != 0)
+		{
+			*step = TASK_PULSE_COUNT;
+		}
+	 
+	}
+	else if(*step == TASK_PULSE_COUNT)
+	{
+		 str1=strstr((const char*)RxBuffer,(const char*)"pulse_count");      //解析 TASK_BUSI_TAIL
+		 str2=strchr((const char*)str1,':');
+		 str3=strchr((const char*)str1,',');
+		 memcpy(buf,str2+1,30);
+
+		 for(i=0;i<30;i++)
+		 {
+			 if(buf[i]==sss)
+			 {
+				 int sum = 0;
+				 for(j=0;j<i;j++)
+				 {
+					 sum = sum*10;
+					 sum = sum + (buf[j]-0x30);
+				 }
+				 task_para.pulse_count = sum;
+				 break;
+			 }
+		 }
+     
+		 if(task_para.pulse_count != 0)
+		{
+			*step = TASK_PULSE_TAIL;
+		}
+	}
+	else if(*step == TASK_PULSE_TAIL)
+	{
+		 str1=strstr((const char*)RxBuffer,(const char*)"pulse_tail");      //解析 TASK_BUSI_TAIL
+		 str2=strchr((const char*)str1,':');
+		 str3=strchr((const char*)str1,',');
+		 memcpy(buf,str2+1,30);
+
+		 for(i=0;i<30;i++)
+		 {
+			 if(buf[i]==0x0A)
+			 {
+				 int sum = 0;
+				 for(j=0;j<i;j++)
+				 {
+					 sum = sum*10;
+					 sum = sum + (buf[j]-0x30);
+				 }
+				 task_para.pulse_tail = sum;
+				 break;
+			 }
+		 }
+     
+		 if(task_para.pulse_tail != 0)
+		{
+			*step = TASK_FINISH;
+		}
+	}
+	
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.

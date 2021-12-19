@@ -1,10 +1,13 @@
 #include "ec200s.h"
 #include "stdio.h"
 #include "cJSON.h"
+#include "command.h"
 //#include "oled.h"
 char *strx;
 IWDG_HandleTypeDef hiwdg;
 uint8_t tempstr[255];
+extern UREA_PARA_STRUCT  urea_para;
+
 //GPS模块的经纬度数据值
 struct 
 {
@@ -164,7 +167,7 @@ void  MQTT_Init(void)
         strx=strstr((const char*)RxBuffer,(const char*)"+QMTOPEN: 0,0");//确认返回值正确
     }
     Clear_Buffer();
-    HAL_Delay(1000);		
+    HAL_Delay(300);		
     printf("AT+QMTCONN=0,\"tsttest004\"\r\n");//去登录MQTT服务器，设备ID，产品ID,鉴权信息。用户根据实际需要进行更改
     HAL_Delay(300);
     strx=strstr((const char*)RxBuffer,(const char*)"+QMTCONN: 0,0,0");//看下返回状态
@@ -173,17 +176,38 @@ void  MQTT_Init(void)
         strx=strstr((const char*)RxBuffer,(const char*)"+QMTCONN: 0,0,0");//看下返回状态
     }
     Clear_Buffer(); 
-    HAL_Delay(1000);		
+		
+    HAL_Delay(300);		
     //printf("AT+QMTSUB=0,1,\"hello\",0\r\n");//去登录MQTT服务器，设备ID，产品ID,鉴权信息。用户根据实际需要进行更改
-		printf("AT+QMTSUB=0,1,\"hello\",0\r\n");
+		printf("AT+QMTSUB=0,1,\"jzj/0/loginreplay\",0\r\n");
     HAL_Delay(300);
     strx=strstr((const char*)RxBuffer,(const char*)"+QMTSUB: 0,1,0,0");//看下返回状态
   while(strx==NULL)
     {
         strx=strstr((const char*)RxBuffer,(const char*)"+QMTSUB: 0,1,0,0");//看下返回状态
-    }
+    }	
+		
     Clear_Buffer(); 
+		
+    HAL_Delay(300);		
+		printf("AT+QMTSUB=0,1,\"jzj/0/filltask\",0\r\n");
+    HAL_Delay(300);
+    strx=strstr((const char*)RxBuffer,(const char*)"+QMTSUB: 0,1,0,0");//看下返回状态
+  while(strx==NULL)
+    {
+        strx=strstr((const char*)RxBuffer,(const char*)"+QMTSUB: 0,1,0,0");//看下返回状态
+    }	
+		
+    Clear_Buffer(); 		
 
+//		HAL_Delay(300);
+//		strx=strstr((const char*)RxBuffer,(const char*)"+message_id");//看下返回状态
+//	while(strx==NULL)
+//		{
+//			//strx=strstr((const char*)RxBuffer,(const char*)"message_id");//看下返回状态
+//			urea_para.message_id
+//		}
+		
 }
 
 

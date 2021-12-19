@@ -5,12 +5,13 @@
 #include "stm32g0xx_ll_system.h"
 #include "stdint.h"
 /*Micro definition -----------------------------------------------------------*/
-#define  READY                         0
-#define  STAY_INJECT                   1
-#define  HALF_INJECT                   2
-#define  FULL_INJECT                   3
-#define  TAIL_INJECT                   4
-#define  FINISH                        5
+#define  LOGIN                         0
+#define  READY                         1
+#define  STAY_INJECT                   2
+#define  HALF_INJECT                   3
+#define  FULL_INJECT                   4
+#define  TAIL_INJECT                   5
+#define  FINISH                        6
 
 #define  TAIL_VALUE                    100000
 
@@ -18,6 +19,7 @@
 #define	 T_2MS								    		 0
 #define  T_LED                         1
 #define  T_HAF                         2
+#define  T_3                           3
 #define  T_HBT                         4  
 #define  TIMER_MAX                     5
 
@@ -41,16 +43,33 @@
 
 #define  SEND_EN                       1
 #define  SEND_OVER                     0
+
+#define  UN_REC_REPLY                  0
+#define  REC_REPLY                     1
+#define  REPLY_ERR                     2 
+
+#define  TASK_ID                       0
+#define  TASK_TIME                     1
+#define  TASK_VLM                      2
+#define  TASK_TYPE                     3
+#define  TASK_NO                       4
+#define  TASK_BUSI_TAIL                5
+#define  TASK_PRICE                    6
+#define  TASK_PULSE_COUNT              7
+#define  TASK_PULSE_TAIL               8
+#define  TASK_FINISH                   9
+
+
  
 
 /*Structure definition -------------------------------------------------------*/
 typedef struct	_SW_TIMER_STRUCT
 {
-	u32	old_ms;
-	u32	timeout_ms;
-	u32	timeout_over;
+	int	old_ms;
+	int	timeout_ms;
+	int	timeout_over;
 	int	count_en;
-	u32 over_ms;
+	int over_ms;
 	
 } SW_TIMER_STRUCT;
 
@@ -65,7 +84,31 @@ typedef	struct	_SCAN_DATA_STRUCT
 	__IO	u32	data_or;
 } SCAN_DATA_STRUCT;
 
+typedef struct	_UREA_PARA
+{
+	char  message_id[30];
+	int   timestamp;
+	int   status;
+	int 	pulse_equ;
+	float open_price;
+	char  QR_Code[30];
+	float conctr;
+	
+} UREA_PARA_STRUCT;
 
+typedef struct	_TASK_PARA
+{
+	char  message_id[30];
+	int   timestamp;
+	int   task_vlm;
+	int 	task_type;
+  char  task_no[30];
+	int   busi_tail;
+	float price;
+	int   pulse_count;
+	int   pulse_tail;
+	
+} TASK_PARA_STRUCT;
 
 #endif 
 
